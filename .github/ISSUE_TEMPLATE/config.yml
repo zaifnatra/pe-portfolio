@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing Guidelines
+    url: https://github.com/zaifnatra/pe-portfolio/blob/main/.github/CONTRIBUTING.md
+    about: Please read before opening an issue or pull request.
