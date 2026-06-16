@@ -1,5 +1,5 @@
 ---
-name: Feature / Story
+name: Feature :sparkles:
 about: A new feature or piece of work to add to the portfolio
 title: ''
 labels: enhancement
