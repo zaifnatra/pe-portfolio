@@ -56,65 +56,33 @@
     <div class="education">
       <h2>Education</h2>
 
+      {% for edu in education %}
       <div class="edu-card">
         <div class="edu-header">
           <div>
-            <h3>CEGEP - John Abbott College</h3>
+            <h3>{{ edu.school }}</h3>
             <span class="edu-sub"
-              >DEC in Science &mdash; St-Anne-de-Bellevue, Quebec</span
+              >{{ edu.degree }} &mdash; {{ edu.location }}</span
             >
           </div>
-          <span class="edu-years">2021 &ndash; 2023</span>
+          <span class="edu-years">{{ edu.years }}</span>
         </div>
       </div>
-
-      <div class="edu-card">
-        <div class="edu-header">
-          <div>
-            <h3>Concordia University</h3>
-            <span class="edu-sub"
-              >Bachelor of Engineering, Software Engineering &mdash; Montreal,
-              Quebec</span
-            >
-          </div>
-          <span class="edu-years">2023 &ndash; 2028</span>
-        </div>
-      </div>
+      {% endfor %}
     </div>
 
     <div class="work-experience">
       <h2>Work Experience</h2>
 
+      {% for job in work_experience %}
       <div class="job-card">
         <div class="job-header">
-          <h3>Part-Time Sushi Chef</h3>
-          <span class="job-tag">Earlier</span>
+          <h3>{{ job.title }}</h3>
+          <span class="job-tag">{{ job.tag }}</span>
         </div>
-        <p>Worked as a sushi chef at a small sushi spot.</p>
+        <p>{{ job.description }}</p>
       </div>
-
-      <div class="job-card">
-        <div class="job-header">
-          <h3>Aviation Cybersecurity Intern - Bombardier Aerospace</h3>
-          <span class="job-tag">Internship</span>
-        </div>
-        <p>
-          Learning about attack protocols and security vulnerabilities in
-          aviation systems.
-        </p>
-      </div>
-
-      <div class="job-card">
-        <div class="job-header">
-          <h3>Engineering Systems Intern - Bombardier Aerospace</h3>
-          <span class="job-tag">Internship</span>
-        </div>
-        <p>
-          Maintained an internal document release system used by Bombardier
-          Champions and Suppliers, ensuring accurate and timely distribution of
-          engineering documentation.
-        </p>
-      </div>
+      {% endfor %}
     </div>
 
     <div class="visited-map">
@@ -125,14 +93,12 @@
     <div class="hobbies">
       <h2>Hobbies</h2>
       <div class="hobbies-grid">
+        {% for hobby in hobbies %}
         <div class="hobby-card">
-          <img src="./static/img/hobby1.jpg" alt="Fishing" />
-          <p>Fishing! Most common fish I caught is catfish</p>
+          <img src="./static/img/{{ hobby.image }}" alt="{{ hobby.alt }}" />
+          <p>{{ hobby.caption }}</p>
         </div>
-        <div class="hobby-card">
-          <img src="./static/img/hobby2.JPG" alt="Hiking" />
-          <p>Hiking! This is my friend and I trekking in Peru</p>
-        </div>
+        {% endfor %}
       </div>
     </div>
   </body>
