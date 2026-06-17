@@ -52,6 +52,17 @@ hobbies = [
 ]
 
 
+@app.context_processor
+def inject_nav():
+    links = []
+    for rule in sorted(app.url_map.iter_rules(), key=lambda r: r.rule):
+        if rule.endpoint == "static" or "GET" not in rule.methods:
+            continue
+        label = "Home" if rule.rule == "/" else rule.rule.strip("/").replace("_", " ").title()
+        links.append({"label": label, "url": rule.rule})
+    return {"nav_links": links}
+
+
 @app.route('/')
 def index():
     return render_template(
@@ -60,5 +71,14 @@ def index():
         url=os.getenv("URL"),
         education=education,
         work_experience=work_experience,
+    )
+
+
+@app.route('/hobbies')
+def hobbies_page():
+    return render_template(
+        'hobbies.html',
+        title="Hobbies",
+        url=os.getenv("URL"),
         hobbies=hobbies,
     )
