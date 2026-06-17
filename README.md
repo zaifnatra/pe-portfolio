@@ -40,6 +40,11 @@ _Note: Make sure to include a link to the Issue you're progressing on inside of 
 - Created 9 GitHub issues for the tasks assigned for this week
 - Tested to run the project locally on my machine, used WSL to run the project.
 
+### 2026-06-17
+
+- Completed all tasks required
+- 3 PRs, first one for static html content, second one for refactoring of static content with Jinja template, lastly third one for implementing dynamic nav bar with a seperate hobbies page
+
 ## Installation
 
 Make sure you have python3 and pip installed
