@@ -45,6 +45,10 @@ _Note: Make sure to include a link to the Issue you're progressing on inside of 
 - Completed all tasks required
 - 3 PRs, first one for static html content, second one for refactoring of static content with Jinja template, lastly third one for implementing dynamic nav bar with a seperate hobbies page
 
+### 2026-06-19
+
+- All 3 PR's merged.
+
 ## Installation
 
 Make sure you have python3 and pip installed
