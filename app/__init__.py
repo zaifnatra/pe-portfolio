@@ -22,19 +22,19 @@ education = [
 
 work_experience = [
     {
+        "title": "Software Engineer Intern - Shopify",
+        "tag": "Incoming",
+        "description": "Incoming Software Engineer Intern (details TBD).",
+    },
+    {
+        "title": "Software Engineer Intern - Bombardier Aerospace (Engineering Systems)",
+        "tag": "Internship",
+        "description": "Maintained an internal document release system used by Bombardier Champions and Suppliers, ensuring accurate and timely distribution of engineering documentation. Led the BES Roadmap 2027 Power BI Dashboard with 15+ Engineering Champions to support the release of 300+ technical manuals, built a SQL data pipeline organizing 10,000+ records into KPI dashboards, supported BES 2.0 modernization with IBM technical teams, built internal tools with Power Apps and Power Automate in the BES SharePoint environment, and improved 138 legacy HTML files. Concurrently supported the Aviation Cybersecurity team on enterprise cyber resilience initiatives.",
+    },
+    {
         "title": "Part-Time Sushi Chef",
         "tag": "Earlier",
-        "description": "Worked as a sushi chef at a small sushi spot.",
-    },
-    {
-        "title": "Aviation Cybersecurity Intern - Bombardier Aerospace",
-        "tag": "Internship",
-        "description": "Learning about attack protocols and security vulnerabilities in aviation systems.",
-    },
-    {
-        "title": "Engineering Systems Intern - Bombardier Aerospace",
-        "tag": "Internship",
-        "description": "Maintained an internal document release system used by Bombardier Champions and Suppliers, ensuring accurate and timely distribution of engineering documentation.",
+        "description": "Prepared sushi and managed service at a small sushi spot.",
     },
 ]
 
@@ -58,15 +58,19 @@ def inject_nav():
     for rule in sorted(app.url_map.iter_rules(), key=lambda r: r.rule):
         if rule.endpoint == "static" or "GET" not in rule.methods:
             continue
-        label = "Home" if rule.rule == "/" else rule.rule.strip("/").replace("_", " ").title()
+        label = (
+            "Home"
+            if rule.rule == "/"
+            else rule.rule.strip("/").replace("_", " ").title()
+        )
         links.append({"label": label, "url": rule.rule})
     return {"nav_links": links}
 
 
-@app.route('/')
+@app.route("/")
 def index():
     return render_template(
-        'index.html',
+        "index.html",
         title="MLH Fellow",
         url=os.getenv("URL"),
         education=education,
@@ -74,10 +78,10 @@ def index():
     )
 
 
-@app.route('/hobbies')
+@app.route("/hobbies")
 def hobbies_page():
     return render_template(
-        'hobbies.html',
+        "hobbies.html",
         title="Hobbies",
         url=os.getenv("URL"),
         hobbies=hobbies,
