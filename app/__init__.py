@@ -29,7 +29,7 @@ work_experience = [
     {
         "title": "Software Engineer Intern - Bombardier Aerospace (Engineering Systems)",
         "tag": "Internship",
-        "description": "Maintained an internal document release system used by Bombardier Champions and Suppliers, ensuring accurate and timely distribution of engineering documentation. Led the BES Roadmap 2027 Power BI Dashboard with 15+ Engineering Champions to support the release of 300+ technical manuals, built a SQL data pipeline organizing 10,000+ records into KPI dashboards, supported BES 2.0 modernization with IBM technical teams, built internal tools with Power Apps and Power Automate in the BES SharePoint environment, and improved 138 legacy HTML files. Concurrently supported the Aviation Cybersecurity team on enterprise cyber resilience initiatives.",
+        "description": "Maintained an internal document release system used by Bombardier Champions and Suppliers.",
     },
     {
         "title": "Part-Time Sushi Chef",
