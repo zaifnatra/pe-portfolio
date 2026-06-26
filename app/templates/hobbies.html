@@ -1,15 +1,13 @@
-{% extends "base.html" %}
-
-{% block content %}
-    <div class="hobbies">
-      <h2>Hobbies</h2>
-      <div class="hobbies-grid">
-        {% for hobby in hobbies %}
-        <div class="hobby-card">
-          <img src="/static/img/{{ hobby.image }}" alt="{{ hobby.alt }}" />
-          <p>{{ hobby.caption }}</p>
-        </div>
-        {% endfor %}
-      </div>
+{% extends "base.html" %} {% block content %}
+<div class="hobbies">
+  <h2>Hobbies</h2>
+  <div class="hobbies-grid">
+    {% for hobby in hobbies %}
+    <div class="hobby-card">
+      <img src="/static/img/{{ hobby.image }}" alt="{{ hobby.alt }}" />
+      <p>{{ hobby.caption }}</p>
     </div>
+    {% endfor %}
+  </div>
+</div>
 {% endblock %}
