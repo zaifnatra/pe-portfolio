@@ -132,3 +132,11 @@ def get_time_line_post():
             for p in TimelinePost.select().order_by(TimelinePost.created_at.desc())
         ]
     }
+
+
+@app.route("/api/timeline_post/<int:post_id>", methods=["DELETE"])
+def delete_time_line_post(post_id):
+    deleted = TimelinePost.delete_by_id(post_id)
+    if deleted == 0:
+        return {"error": f"No timeline post with id {post_id}"}, 404
+    return {"deleted": post_id}
