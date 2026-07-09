@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="timeline">
+  <h2>Timeline</h2>
+
+  <form id="timeline-form" class="timeline-form">
+    <div class="form-row">
+      <input type="text" id="name" name="name" placeholder="Name" required />
+      <input type="email" id="email" name="email" placeholder="Email" required />
+    </div>
+    <textarea id="content" name="content" placeholder="What's on your mind?" rows="3" required></textarea>
+    <button type="submit">Post</button>
+  </form>
+
+  <div id="timeline-posts" class="timeline-posts"></div>
+</div>
+
+<script>
+  const form = document.getElementById("timeline-form");
+  const postsContainer = document.getElementById("timeline-posts");
+
+  // Gravatar identifies users by the SHA-256 hash of their lowercased,
+  // trimmed email. SubtleCrypto handles the hashing in the browser.
+  async function gravatarUrl(email) {
+    const normalized = email.trim().toLowerCase();
+    const data = new TextEncoder().encode(normalized);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    const hash = Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=80`;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  async function renderPost(post) {
+    const avatar = await gravatarUrl(post.email);
+    const when = new Date(post.created_at).toLocaleString();
+    const card = document.createElement("div");
+    card.className = "timeline-card";
+    card.innerHTML = `
+      <img class="timeline-avatar" src="${avatar}" alt="${escapeHtml(post.name)}" />
+      <div class="timeline-body">
+        <div class="timeline-meta">
+          <span class="timeline-name">${escapeHtml(post.name)}</span>
+          <span class="timeline-email">${escapeHtml(post.email)}</span>
+          <span class="timeline-date">${when}</span>
+        </div>
+        <p class="timeline-content">${escapeHtml(post.content)}</p>
+      </div>`;
+    return card;
+  }
+
+  // The GET endpoint already returns posts in descending order.
+  async function loadPosts() {
+    const res = await fetch("/api/timeline_post");
+    const data = await res.json();
+    postsContainer.innerHTML = "";
+    for (const post of data.timeline_posts) {
+      postsContainer.appendChild(await renderPost(post));
+    }
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    await fetch("/api/timeline_post", { method: "POST", body: formData });
+    form.reset();
+    await loadPosts();
+  });
+
+  loadPosts();
+</script>
+{% endblock %}
