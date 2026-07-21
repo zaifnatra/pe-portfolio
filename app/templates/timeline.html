@@ -13,12 +13,15 @@
     <button type="submit">Post</button>
   </form>
 
+  <p id="timeline-error" class="timeline-error" role="alert" hidden></p>
+
   <div id="timeline-posts" class="timeline-posts"></div>
 </div>
 
 <script>
   const form = document.getElementById("timeline-form");
   const postsContainer = document.getElementById("timeline-posts");
+  const errorBox = document.getElementById("timeline-error");
 
   // Gravatar identifies users by the SHA-256 hash of their lowercased,
   // trimmed email. SubtleCrypto handles the hashing in the browser.
@@ -68,8 +71,23 @@
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    errorBox.hidden = true;
     const formData = new FormData(form);
-    await fetch("/api/timeline_post", { method: "POST", body: formData });
+    const res = await fetch("/api/timeline_post", { method: "POST", body: formData });
+
+    // NGINX returns 503 when the per-IP rate limit is exceeded.
+    if (res.status === 503) {
+      errorBox.textContent =
+        "You're posting too fast — the rate limit has been reached. Please wait a minute and try again.";
+      errorBox.hidden = false;
+      return;
+    }
+    if (!res.ok) {
+      errorBox.textContent = "Something went wrong posting your message. Please try again.";
+      errorBox.hidden = false;
+      return;
+    }
+
     form.reset();
     await loadPosts();
   });
