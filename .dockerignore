@@ -1,0 +1,10 @@
+venv/
+.venv
+python3-virtualenv/
+__pycache__/
+*.pyc
+.git/
+.github/
+.pytest_cache/
+flask.sqlite
+.DS_Store

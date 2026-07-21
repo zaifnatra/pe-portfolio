@@ -9,12 +9,10 @@ cd "$PROJECT_DIR"
 echo "Pulling latest changes from main..."
 git fetch && git reset origin/main --hard
 
-echo "Installing python dependencies..."
-source venv/bin/activate
-pip install -r requirements.txt
-deactivate
+echo "Spinning down running containers..."
+docker compose -f docker-compose.prod.yml down
 
-echo "Restarting myportfolio service..."
-sudo systemctl restart myportfolio
+echo "Rebuilding and starting containers..."
+docker compose -f docker-compose.prod.yml up -d --build
 
-echo "Redeploy complete. myportfolio service restarted."
+echo "Redeploy complete. Containers rebuilt and running."
