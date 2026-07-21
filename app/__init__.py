@@ -88,6 +88,9 @@ def inject_nav():
     for rule in sorted(app.url_map.iter_rules(), key=lambda r: r.rule):
         if rule.endpoint == "static" or "GET" not in rule.methods:
             continue
+        # API routes return JSON, not pages — keep them out of the nav.
+        if rule.rule.startswith("/api"):
+            continue
         label = (
             "Home"
             if rule.rule == "/"
