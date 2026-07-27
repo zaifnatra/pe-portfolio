@@ -32,6 +32,31 @@ _Note: Make sure to include a link to the Issue you're progressing on inside of 
 - [x] Create a new page to display hobbies.
 - [x] Add a menu bar that dynamically displays other pages in the app
 
+## Repository Layout
+
+| Path | Purpose |
+| --- | --- |
+| `app/` | Flask application (routes, templates, static assets). |
+| `tests/` | Unit tests for the app and the database model. |
+| `user_conf.d/` | Nginx site config mounted into the `nginx` container. |
+| `Dockerfile` | Image definition for the Flask app. |
+| `docker-compose.yml` | Local development stack (Flask + MariaDB, port 5000 published). |
+| `docker-compose.prod.yml` | Production stack on the VPS (Flask + MariaDB + nginx/certbot on 80/443). |
+| `example.env` | Template for `.env`, listing every environment variable the app uses. |
+| `redeploy-site.sh` | Pulls `origin/main` on the VPS and rebuilds the production containers. |
+| `run_test.sh` | Runs the full unit test suite against the project virtualenv. |
+| `requirements.txt` | Python dependencies. |
+| `.gitignore` | Keeps the virtualenv, `.env`, and caches out of the repo. |
+
+The following files are additions beyond the standard fellowship template.
+
+- `.dockerignore` - keeps the virtualenv, `.git`, and caches out of the Docker build context so image builds stay small and fast.
+- `.gitattributes` - forces LF line endings on the shell scripts.
+  Without it, Git on Windows checks them out with CRLF and the containers fail with `bad interpreter: /bin/bash^M`.
+- `curl-test.sh` - end-to-end API check (POST, GET, DELETE against `/api/timeline_post`) written for the Week 5 exercise.
+- `.github/` - issue templates, a pull request template, and a contributing guide used for the Week 1 GitHub workflow tasks.
+- `docs/deployment-notes.md` - VPS runbook: SSH details, redeploy steps, firewall and certbot gotchas.
+
 ## Getting Started
 
 ### 2026-06-16
