@@ -104,7 +104,8 @@ def inject_nav():
 def index():
     return render_template(
         "index.html",
-        title="MLH Fellow",
+        title="Huzaifa Fareed",
+        tagline="Software Engineering @ Concordia | MLH Production Engineering Fellow",
         url=os.getenv("URL"),
         education=education,
         work_experience=work_experience,
