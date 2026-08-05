@@ -22,17 +22,36 @@ The VPS runs CentOS/RHEL: use `dnf` (not `apt`), `firewalld` (not `ufw`), and th
 
 ## Redeploy the site
 
-Pushing to `main` deploys automatically via `.github/workflows/deploy.yml`, which SSHes in and runs `~/redeploy-site.sh`.
+Pushing to `main` deploys automatically via `.github/workflows/deploy.yml`.
 The same workflow can be triggered by hand from the Actions tab ("Run workflow").
+
+The workflow runs three jobs:
+
+1. `test` - calls `.github/workflows/test.yml` as a reusable workflow. `test.yml` itself only triggers on
+   pull requests, so a push to `main` produces one combined run rather than a duplicate test run.
+2. `deploy` - needs `test`, so a failing test suite blocks the deploy. It SSHes in, runs `~/redeploy-site.sh`,
+   prints `docker compose -f docker-compose.prod.yml ps` into the run log, then posts a success message to Discord.
+3. `notify-failure` - `if: failure()`, so it fires whether the tests or the deploy broke, and says which.
 
 To redeploy manually on the VPS instead:
 ```
 ~/redeploy-site.sh
 ```
 This pulls `origin/main`, then `docker compose -f docker-compose.prod.yml down` and `up -d --build`.
+The script hardcodes `$HOME/pe-portfolio`, so the workflow needs no project-path secret.
 
 The workflow authenticates with the `github-actions-vps` key, whose public half is in `/root/.ssh/authorized_keys`.
-Its private half is the `SSH_PRIVATE_KEY` repo secret, alongside `SSH_IP`, `SSH_USER`, and `PROJECT_ROOT` (`/root/pe-portfolio`, absolute - a `~/` path breaks the quoted `cd`).
+Its private half is the `SSH_PRIVATE_KEY` repo secret, alongside `SSH_IP` and `SSH_USER`.
+Because this key is separate from the personal `id_ed25519` login key, it can be revoked (drop its line from
+`authorized_keys`) without locking yourself out of the VPS.
+
+## Discord notifications
+
+Both notification steps go through `.github/scripts/discord-notify.sh`, which posts to the `DISCORD_WEBHOOK`
+repo secret (a webhook created under Channel Settings > Integrations > Webhooks; the URL starts with
+`https://discord.com/api/webhooks/`). Every message carries the short commit SHA and a link back to the run log.
+
+The script fails loudly if `DISCORD_WEBHOOK` is unset or the POST is rejected, rather than silently sending nothing.
 
 ## Manual container commands (on the VPS)
 ```

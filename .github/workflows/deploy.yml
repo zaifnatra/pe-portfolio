@@ -7,11 +7,19 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    name: Run Tests
+    uses: ./.github/workflows/test.yml
+
   deploy:
     name: Deploy to VPS
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -37,3 +45,44 @@ jobs:
 
       - name: Deploy site
         run: ssh my-vps '~/redeploy-site.sh'
+
+      # Kept in the workflow logs so a future deploy can be compared against the
+      # container state this one left behind.
+      - name: Print container status
+        run: ssh my-vps 'cd ~/pe-portfolio && docker compose -f docker-compose.prod.yml ps'
+
+      - name: Notify Discord of success
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          bash .github/scripts/discord-notify.sh \
+            "🚀 Deployment Successful" \
+            "\`${GITHUB_REF_NAME}\` deployed to the VPS by ${GITHUB_ACTOR}."
+
+  notify-failure:
+    name: Notify Discord of failure
+    needs: [test, deploy]
+    # failure() covers both a failed test job (deploy is then skipped) and a
+    # failed deploy job.
+    if: failure()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Notify Discord of failure
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          TEST_RESULT: ${{ needs.test.result }}
+        run: |
+          # If the tests passed, the deploy job is what broke.
+          if [ "$TEST_RESULT" = "success" ]; then
+            stage="deployment"
+          else
+            stage="tests"
+          fi
+
+          bash .github/scripts/discord-notify.sh \
+            "🚨 Deployment Failed" \
+            "\`${GITHUB_REF_NAME}\` failed at the ${stage} stage (pushed by ${GITHUB_ACTOR})."

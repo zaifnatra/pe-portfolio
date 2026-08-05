@@ -1,12 +1,12 @@
 name: Run Tests
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
+  # Called by the deploy workflow so pushes to main test and deploy as one run
+  # instead of kicking off a second, redundant test run.
+  workflow_call:
 
 jobs:
   test:
