@@ -20,11 +20,19 @@ ssh -i ~/.ssh/id_ed25519 root@167.172.138.95
 ```
 The VPS runs CentOS/RHEL: use `dnf` (not `apt`), `firewalld` (not `ufw`), and there is no `nano` by default (`vi`, or `dnf install -y nano`).
 
-## Redeploy the site (after pushing changes to GitHub)
+## Redeploy the site
+
+Pushing to `main` deploys automatically via `.github/workflows/deploy.yml`, which SSHes in and runs `~/redeploy-site.sh`.
+The same workflow can be triggered by hand from the Actions tab ("Run workflow").
+
+To redeploy manually on the VPS instead:
 ```
 ~/redeploy-site.sh
 ```
 This pulls `origin/main`, then `docker compose -f docker-compose.prod.yml down` and `up -d --build`.
+
+The workflow authenticates with the `github-actions-vps` key, whose public half is in `/root/.ssh/authorized_keys`.
+Its private half is the `SSH_PRIVATE_KEY` repo secret, alongside `SSH_IP`, `SSH_USER`, and `PROJECT_ROOT` (`/root/pe-portfolio`, absolute - a `~/` path breaks the quoted `cd`).
 
 ## Manual container commands (on the VPS)
 ```
