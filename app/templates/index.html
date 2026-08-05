@@ -48,6 +48,9 @@
         <div class="job-header">
           <h3>{{ job.title }}</h3>
           <span class="job-tag">{{ job.tag }}</span>
+          {% if job.years %}
+          <span class="job-years">{{ job.years }}</span>
+          {% endif %}
         </div>
         <p>{{ job.description }}</p>
       </div>

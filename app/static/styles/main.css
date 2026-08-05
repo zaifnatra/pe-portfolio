@@ -199,6 +199,7 @@ body {
 
 .job-header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 12px;
     margin-bottom: 8px;
@@ -218,6 +219,14 @@ body {
     padding: 3px 10px;
     border-radius: 12px;
     white-space: nowrap;
+}
+
+.job-years {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d539f;
+    white-space: nowrap;
+    margin-left: auto;
 }
 
 .job-card p {

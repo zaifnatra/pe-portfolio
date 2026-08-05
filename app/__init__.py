@@ -52,9 +52,10 @@ education = [
 
 work_experience = [
     {
-        "title": "Software Engineer Intern - Shopify",
+        "title": "Infrastructure Engineer - Shopify",
         "tag": "Incoming",
-        "description": "Incoming Software Engineer Intern (details TBD).",
+        "years": "Sept 2026 – Dec 2026",
+        "description": "Joining the Data Streaming Infrastructure team.",
     },
     {
         "title": "Software Engineer Intern - Bombardier Aerospace (Engineering Systems)",
