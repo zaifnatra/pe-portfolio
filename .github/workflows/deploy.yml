@@ -19,7 +19,8 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy-key.pem
+          printf '%s\n' "$SSH_PRIVATE_KEY" |
+            tr -d '\r' > ~/.ssh/deploy-key.pem
           chmod 600 ~/.ssh/deploy-key.pem
 
           cat >> ~/.ssh/config <<EOF
