@@ -23,6 +23,10 @@ jobs:
             tr -d '\r' > ~/.ssh/deploy-key.pem
           chmod 600 ~/.ssh/deploy-key.pem
 
+          # Fail here (not with a vague "Permission denied") if the secret was
+          # pasted without its line breaks or still has a passphrase.
+          ssh-keygen -y -f ~/.ssh/deploy-key.pem > /dev/null
+
           cat >> ~/.ssh/config <<EOF
           Host my-vps
             HostName $SSH_IP
