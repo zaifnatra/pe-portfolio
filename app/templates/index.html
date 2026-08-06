@@ -1,17 +1,36 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="profile">
-      <div id="profile-picture" class="profile-picture">
-        <img src="/static/img/pfp.jpg" alt="Portrait of Huzaifa Fareed" />
-      </div>
-      <h1>{{ title }}</h1>
-      <p class="profile-tagline">{{ tagline }}</p>
-    </div>
+<section id="top" class="hero">
+  <h1 class="hero-title">{{ title }} <em>Portfolio</em> Site.</h1>
+  <p class="lede hero-lede">{{ tagline }}</p>
+  <div class="hero-actions">
+    <a class="btn" href="#work">See the work</a>
+    {% for social in socials %}
+    <a class="btn btn-outline" href="{{ social.url }}" target="_blank" rel="noopener noreferrer">
+      {{ social.label }}
+    </a>
+    {% endfor %}
+  </div>
+</section>
 
-    <div class="about-me">
-      <h2>About Me</h2>
-      <p>
+{% if marquee_items %}
+<div class="marquee" aria-hidden="true">
+  <div class="marquee-track">
+    {# The list is rendered twice so the -50% translation loops seamlessly. #}
+    {% for _ in range(2) %}
+      {% for item in marquee_items %}<span>{{ item }}</span>{% endfor %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<section id="about" class="section reveal">
+  <div class="about-grid">
+    <div>
+      <span class="eyebrow">About Me</span>
+      <h2 class="about-title">My passions, <em>hobbies</em> and life story.</h2>
+      <p class="about-copy">
         Hello, I am a software engineering student at Concordia University in
         Montreal who loves creating websites and applications. I enjoy working
         with different technologies and learning new things every day. My
@@ -20,45 +39,143 @@
         constantly. When I'm not coding, I have a pretty active lifestyle and
         diverse interests that keep me busy!
       </p>
+
+      {% if skills %}
+      <ul class="chip-list" style="margin-top: 2rem">
+        {% for skill in skills %}
+        <li class="chip">{{ skill }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
     </div>
 
-    <div class="education">
-      <h2>Education</h2>
+    <div class="about-media">
+      <img src="/static/img/pfp.jpg" alt="Portrait of Huzaifa Fareed" />
+    </div>
+  </div>
+</section>
 
-      {% for edu in education %}
-      <div class="edu-card">
-        <div class="edu-header">
-          <div>
-            <h3>{{ edu.school }}</h3>
-            <span class="edu-sub"
-              >{{ edu.degree }} &mdash; {{ edu.location }}</span
-            >
-          </div>
-          <span class="edu-years">{{ edu.years }}</span>
-        </div>
+<section id="education" class="section reveal">
+  <div class="section-head">
+    <h2 class="section-title">Education</h2>
+    <span class="section-meta">{{ education | length }} institutions</span>
+  </div>
+
+  <ul class="row-list">
+    {% for edu in education %}
+    <li class="row">
+      <div class="row-main">
+        <h3>{{ edu.school }}</h3>
+        <span class="row-sub">{{ edu.degree }} &mdash; {{ edu.location }}</span>
       </div>
-      {% endfor %}
-    </div>
+      <span class="row-date">{{ edu.years }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
 
-    <div class="work-experience">
-      <h2>Work Experience</h2>
+<section id="experience" class="section reveal">
+  <div class="section-head">
+    <h2 class="section-title">Work Experience</h2>
+    <span class="section-meta">{{ work_experience | length }} roles</span>
+  </div>
 
-      {% for job in work_experience %}
-      <div class="job-card">
-        <div class="job-header">
-          <h3>{{ job.title }}</h3>
-          <span class="job-tag">{{ job.tag }}</span>
-          {% if job.years %}
-          <span class="job-years">{{ job.years }}</span>
+  <ul class="row-list">
+    {% for job in work_experience %}
+    {# Split "Role - Company" so the company can lead, next to its logo. #}
+    {% set parts = job.title.split(' - ', 1) %}
+    {% set role = parts[0] if parts | length == 2 else none %}
+    {% set company = parts[1] if parts | length == 2 else parts[0] %}
+    <li class="row row-logo">
+      {% if job.logo %}
+      <img class="row-mark" src="/static/img/logos/{{ job.logo }}" alt="{{ company }}" loading="lazy" />
+      {% else %}
+      <span class="row-mark row-mark-fallback" aria-hidden="true">{{ company[0] }}</span>
+      {% endif %}
+
+      <div class="row-main">
+        <h3>
+          {% if job.url %}
+          <a href="{{ job.url }}" target="_blank" rel="noopener noreferrer">{{ company }}</a>
+          {% else %}
+          {{ company }}
           {% endif %}
-        </div>
-        <p>{{ job.description }}</p>
+          <span class="row-tag">{{ job.tag }}</span>
+        </h3>
+        <span class="row-sub">{{ role or job.description }}</span>
+        {% if role %}<span class="row-note">{{ job.description }}</span>{% endif %}
+      </div>
+
+      {% if job.years %}
+      <span class="row-date">{{ job.years }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section id="work" class="section reveal">
+  <div class="section-head">
+    <h2 class="section-title">Projects</h2>
+    <span class="section-meta">{{ project_count }} projects · 2024 — 2026</span>
+  </div>
+
+  {% for project in featured_projects %}
+  {# Alternate which side the screenshots land on. #}
+  <article class="project {% if loop.index is even %}project-flip{% endif %}">
+    <div class="project-shots">
+      {% for image in project.images %}
+      <div class="project-shot">
+        <img src="/static/img/projects/{{ image }}" alt="{{ project.name }}" loading="lazy" />
       </div>
       {% endfor %}
     </div>
 
-    <div class="visited-map">
-      <h2>Places I've Visited</h2>
-      <img src="/static/img/map.png" alt="World map of visited countries" />
+    <div class="project-body">
+      {% if project.tag %}<span class="eyebrow">{{ project.tag }}</span>{% endif %}
+      <h3 class="project-title">{{ project.name }}</h3>
+      <p class="project-desc">{{ project.description }}</p>
+      <p class="project-stack">{{ project.stack | join(' · ') }}</p>
+      <div class="project-links">
+        {% for link in project.links %}
+        <a class="chip" href="{{ link.url }}" target="_blank" rel="noopener noreferrer">
+          {{ link.label }} <span aria-hidden="true">↗</span>
+        </a>
+        {% endfor %}
+      </div>
     </div>
+  </article>
+  {% endfor %}
+
+  <div class="project-grid">
+    {% for project in other_projects %}
+    <article class="project-card">
+      <div class="project-shot project-shot-sm">
+        <img src="/static/img/projects/{{ project.image }}" alt="{{ project.name }}" loading="lazy" />
+      </div>
+      <h4 class="project-card-title">{{ project.name }}</h4>
+      <p class="project-desc">{{ project.description }}</p>
+      <p class="project-stack">{{ project.stack | join(' · ') }}</p>
+      <div class="project-links">
+        {% for link in project.links %}
+        <a class="chip" href="{{ link.url }}" target="_blank" rel="noopener noreferrer">
+          {{ link.label }} <span aria-hidden="true">↗</span>
+        </a>
+        {% endfor %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section id="places" class="section reveal">
+  <div class="section-head">
+    <h2 class="section-title">Places I've Visited</h2>
+    <span class="section-meta">Nine countries · and counting</span>
+  </div>
+
+  <div class="map-frame">
+    <img src="/static/img/map.png" alt="World map of visited countries" />
+  </div>
+</section>
 {% endblock %}

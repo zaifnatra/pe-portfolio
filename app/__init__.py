@@ -50,17 +50,32 @@ education = [
     },
 ]
 
+# "logo" is a filename in static/img/logos; roles without one fall back to a
+# monogram drawn from the company name.
 work_experience = [
     {
         "title": "Infrastructure Engineer - Shopify",
         "tag": "Incoming",
         "years": "Sept 2026 – Dec 2026",
         "description": "Joining the Data Streaming Infrastructure team.",
+        "logo": "logo-shopify.png",
+        "url": "https://www.shopify.com",
+    },
+    {
+        "title": "Production Engineering Fellow - Meta × MLH Fellowship",
+        "tag": "Fellowship",
+        "years": "Jun 2026 – Sept 2026",
+        "description": "Production engineering track of the MLH Fellowship, sponsored by Meta.",
+        "logo": "logo-meta.png",
+        "url": "https://fellowship.mlh.io",
     },
     {
         "title": "Software Engineer Intern - Bombardier Aerospace (Engineering Systems)",
         "tag": "Internship",
+        "years": "Jan 2026 – Aug 2026",
         "description": "Maintained an internal document release system used by Bombardier Champions and Suppliers.",
+        "logo": "logo-bombardier.png",
+        "url": "https://www.bombardier.com",
     },
     {
         "title": "Part-Time Sushi Chef",
@@ -68,6 +83,134 @@ work_experience = [
         "description": "Prepared sushi and managed service at a small sushi spot.",
     },
 ]
+
+# Displayed as tags on the home page. These are the technologies this site
+# itself is built and deployed with — add to the list as that changes.
+skills = [
+    "Python",
+    "Flask",
+    "MySQL",
+    "Docker",
+    "NGINX",
+    "GitHub Actions",
+    "Linux",
+    "JavaScript",
+    "HTML & CSS",
+]
+
+# The three headline projects, each shown large with a pair of screenshots.
+# Image filenames live in static/img/projects.
+featured_projects = [
+    {
+        "name": "mtl minted",
+        "tag": "Winner · McHacks",
+        "description": (
+            "A platform for artists to mint and tokenize their identity on "
+            "Solana, with on-chain ownership handled by custom Anchor programs."
+        ),
+        "stack": ["Solana", "Rust", "Anchor", "React"],
+        "images": ["original.png", "original2.png"],
+        "links": [
+            {"label": "Code on GitHub", "url": "https://github.com/zaifnatra/solana"},
+            {"label": "Devpost", "url": "https://devpost.com/software/black-beauty"},
+        ],
+    },
+    {
+        "name": "shorten.it",
+        "tag": "3rd overall · Meta × MLH",
+        "description": (
+            "A URL shortener built to survive production, load tests, injected "
+            "outages, and a live Grafana view of it all holding together."
+        ),
+        "stack": ["Flask", "Redis", "PostgreSQL", "Grafana"],
+        "images": ["screenShot.png", "dashboard.png"],
+        "links": [
+            {"label": "Code on GitHub", "url": "https://github.com/zaifnatra/MetaHackathon"},
+            {"label": "Devpost", "url": "https://devpost.com/software/shorten-it"},
+        ],
+    },
+    {
+        "name": "retro secrets",
+        "tag": "Winner · ConUHacks",
+        "description": (
+            "Messages hidden in plain sight, steganography with custom "
+            "encryption, wrapped in a small social platform for passing them around."
+        ),
+        "stack": ["Python", "TypeScript"],
+        "images": ["retro1.png", "retro.png"],
+        "links": [
+            {"label": "Code on GitHub", "url": "https://github.com/deltag0/ConUHacks"},
+            {"label": "Devpost", "url": "https://devpost.com/software/retro-secrets"},
+        ],
+    },
+]
+
+# Everything else, shown in a smaller grid below the featured three.
+other_projects = [
+    {
+        "name": "gear pack",
+        "description": "Track and share hiking and mountaineering gear across a group of friends.",
+        "stack": ["Next.js", "TypeScript", "Supabase", "Prisma"],
+        "image": "S1.jpg",
+        "links": [
+            {"label": "GitHub", "url": "https://github.com/zaifnatra/gear-pack"},
+            {"label": "Live", "url": "https://gear-pack.vercel.app/"},
+        ],
+    },
+    {
+        "name": "ev prediction model",
+        "description": "Predicting electric vehicle specs from a trained scikit-learn model, deployed on Streamlit.",
+        "stack": ["Python", "scikit-learn", "Streamlit"],
+        "image": "ev.png",
+        "links": [
+            {"label": "GitHub", "url": "https://github.com/zaifnatra/ev-ml"},
+            {"label": "Live", "url": "https://ev-prediction-zaifnatra.streamlit.app/"},
+        ],
+    },
+    {
+        "name": "heroes journey",
+        "description": "A 2D puzzle adventure through a randomized maze, written from scratch in Java.",
+        "stack": ["Java"],
+        "image": "heroes1.jpg",
+        "links": [
+            {"label": "GitHub", "url": "https://github.com/zaifnatra/spaceus"},
+        ],
+    },
+    {
+        "name": "campus events",
+        "description": "Ticketing platform for students to discover, organize and attend events on campus.",
+        "stack": ["JavaScript", "MongoDB"],
+        "image": "campus.jpg",
+        "links": [
+            {"label": "GitHub", "url": "https://github.com/zaifnatra/SOEN341-F25"},
+            {"label": "Live", "url": "https://soen341-f25.onrender.com/"},
+        ],
+    },
+]
+
+project_count = len(featured_projects) + len(other_projects)
+
+socials = [
+    {"label": "GitHub", "url": "https://github.com/zaifnatra"},
+    {"label": "LinkedIn", "url": "https://linkedin.com/in/huzaifa-fareed"},
+]
+
+# Scrolling band under the hero. "Title - Company" gets flipped so the
+# company reads first, which is what the eye catches at that size.
+marquee_items = []
+for _job in work_experience:
+    if " - " in _job["title"]:
+        _role, _company = _job["title"].split(" - ", 1)
+        marquee_items.append(f"{_company} · {_role}")
+    else:
+        marquee_items.append(_job["title"])
+
+# Hackathon placements ride along in the same band.
+marquee_items += [p["tag"] for p in featured_projects if p.get("tag")]
+
+# Character cap the timeline form enforces in the browser. The API itself
+# accepts any non-empty content; this only shapes the front end.
+MAX_CONTENT_LENGTH = 500
 
 hobbies = [
     {
@@ -110,6 +253,12 @@ def index():
         url=os.getenv("URL"),
         education=education,
         work_experience=work_experience,
+        skills=skills,
+        featured_projects=featured_projects,
+        other_projects=other_projects,
+        project_count=project_count,
+        socials=socials,
+        marquee_items=marquee_items,
     )
 
 
@@ -125,7 +274,12 @@ def hobbies_page():
 
 @app.route("/timeline")
 def timeline():
-    return render_template("timeline.html", title="Timeline", url=os.getenv("URL"))
+    return render_template(
+        "timeline.html",
+        title="Timeline",
+        url=os.getenv("URL"),
+        max_content_length=MAX_CONTENT_LENGTH,
+    )
 
 
 @app.route("/api/timeline_post", methods=["POST"])
