@@ -1,13 +1,27 @@
-{% extends "base.html" %} {% block content %}
-<div class="hobbies">
-  <h2>Hobbies</h2>
+{% extends "base.html" %}
+
+{% block content %}
+<section id="outside" class="section">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">Outside</span>
+      <h2 class="section-title">Away from the screen.</h2>
+    </div>
+    <span class="section-meta">Hobbies</span>
+  </div>
+
   <div class="hobbies-grid">
     {% for hobby in hobbies %}
-    <div class="hobby-card">
-      <img src="/static/img/{{ hobby.image }}" alt="{{ hobby.alt }}" />
-      <p>{{ hobby.caption }}</p>
-    </div>
+    <figure class="hobby-card reveal">
+      <div class="hobby-media">
+        <img src="/static/img/{{ hobby.image }}" alt="{{ hobby.alt }}" loading="lazy" />
+      </div>
+      <figcaption>
+        <span class="hobby-title">{{ hobby.alt }}</span>
+        <p>{{ hobby.caption }}</p>
+      </figcaption>
+    </figure>
     {% endfor %}
   </div>
-</div>
+</section>
 {% endblock %}

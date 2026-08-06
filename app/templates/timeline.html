@@ -1,27 +1,75 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="timeline">
-  <h2>Timeline</h2>
-
-  <form id="timeline-form" class="timeline-form">
-    <div class="form-row">
-      <input type="text" id="name" name="name" placeholder="Name" required />
-      <input type="email" id="email" name="email" placeholder="Email" required />
+<section id="contact" class="section timeline">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">Reach Me</span>
+      <h2 class="section-title">Timeline</h2>
     </div>
-    <textarea id="content" name="content" placeholder="What's on your mind?" rows="3" required></textarea>
-    <button type="submit">Post</button>
-  </form>
+    <span class="section-meta">Leave a note — it appears right away</span>
+  </div>
 
-  <p id="timeline-error" class="timeline-error" role="alert" hidden></p>
+  <div class="timeline-layout">
+    <form id="timeline-form" class="timeline-form" novalidate>
+      <div class="form-row">
+        <label class="field">
+          <span class="field-label">Name</span>
+          <input type="text" id="name" name="name" placeholder="Ada Lovelace" required />
+        </label>
+        <label class="field">
+          <span class="field-label">Email</span>
+          <input type="email" id="email" name="email" placeholder="ada@example.com" required />
+        </label>
+      </div>
 
-  <div id="timeline-posts" class="timeline-posts"></div>
-</div>
+      <label class="field">
+        <span class="field-label">
+          Message
+          <span id="char-count" class="char-count">0 / {{ max_content_length }}</span>
+        </span>
+        <textarea
+          id="content"
+          name="content"
+          placeholder="What's on your mind?"
+          rows="4"
+          maxlength="{{ max_content_length }}"
+          required
+        ></textarea>
+      </label>
 
+      <button id="timeline-submit" class="btn" type="submit">Post</button>
+    </form>
+
+    <div>
+      <p id="timeline-error" class="timeline-error" role="alert" hidden></p>
+
+      <div id="timeline-posts" class="timeline-posts" aria-live="polite"></div>
+
+      <div id="timeline-loading" class="timeline-status">
+        <span class="spinner" aria-hidden="true"></span> Loading posts…
+      </div>
+
+      <p id="timeline-empty" class="timeline-status" hidden>
+        No posts yet — be the first to write one.
+      </p>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
 <script>
+  const MAX_CONTENT_LENGTH = {{ max_content_length }};
+
   const form = document.getElementById("timeline-form");
+  const submitButton = document.getElementById("timeline-submit");
   const postsContainer = document.getElementById("timeline-posts");
   const errorBox = document.getElementById("timeline-error");
+  const loadingBox = document.getElementById("timeline-loading");
+  const emptyBox = document.getElementById("timeline-empty");
+  const contentField = document.getElementById("content");
+  const charCount = document.getElementById("char-count");
 
   // Gravatar identifies users by the SHA-256 hash of their lowercased,
   // trimmed email. SubtleCrypto handles the hashing in the browser.
@@ -41,55 +89,146 @@
     return div.innerHTML;
   }
 
+  // "3 minutes ago" reads better than a raw timestamp for recent posts; the
+  // exact time stays available in the title attribute on hover.
+  function relativeTime(date) {
+    const seconds = Math.round((Date.now() - date.getTime()) / 1000);
+    const units = [
+      ["year", 31536000],
+      ["month", 2592000],
+      ["day", 86400],
+      ["hour", 3600],
+      ["minute", 60],
+    ];
+    if (seconds < 45) return "just now";
+    for (const [unit, unitSeconds] of units) {
+      const value = Math.floor(seconds / unitSeconds);
+      if (value >= 1) return `${value} ${unit}${value === 1 ? "" : "s"} ago`;
+    }
+    return "just now";
+  }
+
+  function showError(message) {
+    errorBox.textContent = message;
+    errorBox.hidden = false;
+  }
+
+  function clearError() {
+    errorBox.hidden = true;
+  }
+
+  // Mirrors the server-side checks in /api/timeline_post so the visitor gets
+  // feedback without a round trip. The server remains the real gatekeeper.
+  function validate(formData) {
+    const name = (formData.get("name") || "").trim();
+    const email = (formData.get("email") || "").trim();
+    const content = (formData.get("content") || "").trim();
+
+    if (!name) return "Please enter your name.";
+    if (!email.includes("@") || !email.split("@").pop().includes("."))
+      return "Please enter a valid email address.";
+    if (!content) return "Please write a message before posting.";
+    if (content.length > MAX_CONTENT_LENGTH)
+      return `Messages are limited to ${MAX_CONTENT_LENGTH} characters.`;
+    return null;
+  }
+
   async function renderPost(post) {
     const avatar = await gravatarUrl(post.email);
-    const when = new Date(post.created_at).toLocaleString();
-    const card = document.createElement("div");
+    const created = new Date(post.created_at);
+    const card = document.createElement("article");
     card.className = "timeline-card";
+    card.dataset.postId = post.id;
     card.innerHTML = `
-      <img class="timeline-avatar" src="${avatar}" alt="${escapeHtml(post.name)}" />
+      <img class="timeline-avatar" src="${avatar}" alt="" loading="lazy" />
       <div class="timeline-body">
         <div class="timeline-meta">
           <span class="timeline-name">${escapeHtml(post.name)}</span>
           <span class="timeline-email">${escapeHtml(post.email)}</span>
-          <span class="timeline-date">${when}</span>
+          <span class="timeline-date" title="${escapeHtml(created.toLocaleString())}">${relativeTime(created)}</span>
         </div>
         <p class="timeline-content">${escapeHtml(post.content)}</p>
-      </div>`;
+      </div>
+      <button class="timeline-delete" type="button" aria-label="Delete post by ${escapeHtml(post.name)}">×</button>`;
+
+    card.querySelector(".timeline-delete").addEventListener("click", () => deletePost(post.id));
     return card;
+  }
+
+  async function deletePost(postId) {
+    if (!window.confirm("Delete this post?")) return;
+    clearError();
+    const res = await fetch(`/api/timeline_post/${postId}`, { method: "DELETE" });
+    if (!res.ok) {
+      showError("Couldn't delete that post. Please try again.");
+      return;
+    }
+    await loadPosts();
   }
 
   // The GET endpoint already returns posts in descending order.
   async function loadPosts() {
-    const res = await fetch("/api/timeline_post");
-    const data = await res.json();
-    postsContainer.innerHTML = "";
-    for (const post of data.timeline_posts) {
-      postsContainer.appendChild(await renderPost(post));
+    loadingBox.hidden = false;
+    emptyBox.hidden = true;
+    try {
+      const res = await fetch("/api/timeline_post");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const posts = data.timeline_posts;
+
+      postsContainer.innerHTML = "";
+      for (const post of posts) {
+        postsContainer.appendChild(await renderPost(post));
+      }
+      emptyBox.hidden = posts.length > 0;
+    } catch (err) {
+      showError("Couldn't load the timeline. Please refresh the page.");
+    } finally {
+      loadingBox.hidden = true;
     }
   }
 
+  contentField.addEventListener("input", () => {
+    charCount.textContent = `${contentField.value.length} / ${MAX_CONTENT_LENGTH}`;
+    charCount.classList.toggle("char-count-max", contentField.value.length >= MAX_CONTENT_LENGTH);
+  });
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    errorBox.hidden = true;
+    clearError();
+
     const formData = new FormData(form);
-    const res = await fetch("/api/timeline_post", { method: "POST", body: formData });
-
-    // NGINX returns 503 when the per-IP rate limit is exceeded.
-    if (res.status === 503) {
-      errorBox.textContent =
-        "You're posting too fast — the rate limit has been reached. Please wait a minute and try again.";
-      errorBox.hidden = false;
-      return;
-    }
-    if (!res.ok) {
-      errorBox.textContent = "Something went wrong posting your message. Please try again.";
-      errorBox.hidden = false;
+    const problem = validate(formData);
+    if (problem) {
+      showError(problem);
       return;
     }
 
-    form.reset();
-    await loadPosts();
+    submitButton.disabled = true;
+    submitButton.textContent = "Posting…";
+    try {
+      const res = await fetch("/api/timeline_post", { method: "POST", body: formData });
+
+      // NGINX returns 503 when the per-IP rate limit is exceeded.
+      if (res.status === 503) {
+        showError(
+          "You're posting too fast — the rate limit has been reached. Please wait a minute and try again."
+        );
+        return;
+      }
+      if (!res.ok) {
+        showError("Something went wrong posting your message. Please try again.");
+        return;
+      }
+
+      form.reset();
+      charCount.textContent = `0 / ${MAX_CONTENT_LENGTH}`;
+      charCount.classList.remove("char-count-max");
+      await loadPosts();
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Post";
+    }
   });
 
   loadPosts();
