@@ -2,6 +2,7 @@
 
 import os
 import unittest
+from unittest.mock import patch
 
 os.environ["TESTING"] = "true"
 
@@ -59,6 +60,48 @@ class AppTestCase(unittest.TestCase):
         page_html = page_response.get_data(as_text=True)
         assert "Timeline" in page_html
         assert 'id="timeline-form"' in page_html
+
+    def test_health(self):
+        response = self.client.get("/health")
+        assert response.status_code == 200
+        assert response.is_json
+        payload = response.get_json()
+        assert payload["status"] == "ok"
+        assert payload["checks"]["database"]["status"] == "ok"
+        assert payload["checks"]["database"]["timeline_posts"] == 0
+        # There is no nginx container in the test environment, so that check
+        # reports itself as skipped rather than failing the endpoint.
+        assert payload["checks"]["nginx"]["status"] == "skipped"
+        assert "duration_ms" in payload
+
+    def test_health_reports_a_failing_dependency(self):
+        def unreachable():
+            raise RuntimeError("connection refused")
+
+        with patch.dict("app.HEALTH_CHECKS", {"database": unreachable}):
+            response = self.client.get("/health")
+
+        assert response.status_code == 503
+        payload = response.get_json()
+        assert payload["status"] == "unhealthy"
+        database = payload["checks"]["database"]
+        assert database["status"] == "error"
+        assert "connection refused" in database["error"]
+
+    def test_metrics(self):
+        response = self.client.get("/metrics")
+        assert response.status_code == 200
+        body = response.get_data(as_text=True)
+        # Request metrics from the exporter, dependency gauges from our own
+        # collector — Prometheus needs both from this one endpoint.
+        assert "flask_http_request_total" in body
+        assert 'portfolio_dependency_up{dependency="database"} 1.0' in body
+
+    def test_nav_hides_operational_routes(self):
+        html = self.client.get("/").get_data(as_text=True)
+        assert 'href="/hobbies"' in html
+        assert 'href="/health"' not in html
+        assert 'href="/metrics"' not in html
 
     def test_malformed_timeline_post(self):
         # POST request missing name

@@ -1,0 +1,183 @@
+# Alerting rules for the portfolio site.
+#
+# Thresholds are tuned for the actual VPS: 2 vCPU, 1.7 GB RAM, 60 GB disk.
+# "critical" alerts reach Discord within ~10s and repeat hourly; "warning"
+# alerts are grouped and repeat every 4h (see alertmanager/config.yml).
+
+groups:
+
+  - name: availability
+    rules:
+
+      - alert: TargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus target {{ $labels.instance }} is down"
+          description: "{{ $labels.instance }} (job {{ $labels.job }}) has not answered a scrape for 2 minutes."
+
+      - alert: PortfolioSiteDown
+        expr: up{job="portfolio"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The portfolio site is not responding"
+          description: "The myportfolio container has not answered a scrape for 1 minute, so https://huzaifa-pe-portfolio.duckdns.org is likely down."
+
+      # Driven by the app's own /health checks, which Prometheus re-runs on
+      # every scrape of /metrics. Catches a dependency failing while the Flask
+      # container itself is still up and serving.
+      - alert: PortfolioDependencyDown
+        expr: portfolio_dependency_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Portfolio dependency '{{ $labels.dependency }}' is failing"
+          description: "/health has reported {{ $labels.dependency }} as unreachable for 2 minutes. Check `docker compose -f docker-compose.prod.yml ps` in ~/pe-portfolio."
+
+      # absent() keeps the name label from the selector, so the notification
+      # still says which container went missing.
+      - alert: ContainerMissing
+        expr: >-
+          absent(container_last_seen{name="myportfolio"})
+          or absent(container_last_seen{name="mysql"})
+          or absent(container_last_seen{name="nginx"})
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ $labels.name }} has disappeared"
+          description: "cAdvisor no longer sees a container named {{ $labels.name }}. It was stopped, removed, or never came back after a rebuild."
+
+  - name: portfolio-traffic
+    rules:
+
+      - alert: PortfolioHighErrorRate
+        expr: >-
+          sum(rate(flask_http_request_total{job="portfolio",status=~"5.."}[5m]))
+          / sum(rate(flask_http_request_total{job="portfolio"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Portfolio site is serving 5xx responses"
+          description: "More than 5% of requests have failed with a server error over the last 5 minutes ({{ $value | humanizePercentage }})."
+
+      - alert: PortfolioHighLatency
+        expr: >-
+          histogram_quantile(
+            0.95,
+            sum by (le, path) (rate(flask_http_request_duration_seconds_bucket{job="portfolio"}[5m]))
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Portfolio endpoint {{ $labels.path }} is slow"
+          description: "95th percentile response time for {{ $labels.path }} has been above 1s for 5 minutes (currently {{ $value | humanizeDuration }})."
+
+      - alert: PortfolioDependencySlow
+        expr: portfolio_dependency_check_duration_seconds > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Health check for '{{ $labels.dependency }}' is slow"
+          description: "{{ $labels.dependency }} has taken more than 500ms to answer its health check for 5 minutes (currently {{ $value | humanizeDuration }})."
+
+  - name: containers
+    rules:
+
+      - alert: ContainerHighCpu
+        expr: sum by (name) (rate(container_cpu_usage_seconds_total{name!=""}[5m])) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} is burning CPU"
+          description: "{{ $labels.name }} has used more than 80% of a core for 5 minutes (currently {{ $value | printf \"%.0f\" }}%). The box only has 2."
+
+      # No container has a memory limit set, so this is measured against the
+      # host's 1.7 GB — 30% is roughly 512 MB.
+      - alert: ContainerHighMemory
+        expr: 100 * container_memory_usage_bytes{name!=""} / scalar(machine_memory_bytes) > 30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} is using a lot of memory"
+          description: "{{ $labels.name }} is holding {{ $value | printf \"%.0f\" }}% of the host's memory. With 1.7 GB total, a few of these means the OOM killer."
+
+      - alert: ContainerRestarted
+        expr: max by (name) (changes(container_start_time_seconds{name=~"myportfolio|mysql|nginx"}[15m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} restarted"
+          description: "{{ $labels.name }} restarted in the last 15 minutes. Expected right after a deploy; otherwise it crashed and `restart: always` brought it back."
+
+  - name: host
+    rules:
+
+      - alert: HostHighCpu
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host CPU is saturated"
+          description: "CPU usage has been above 85% for 5 minutes (currently {{ $value | printf \"%.0f\" }}%)."
+
+      - alert: HostHighLoad
+        expr: node_load1 > on (instance) 1.5 * count by (instance) (node_cpu_seconds_total{mode="idle"})
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host load average is high"
+          description: "1-minute load average is {{ $value | printf \"%.2f\" }} on a 2-core box, so work is queueing."
+
+      - alert: HostHighMemory
+        expr: 100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host memory is running out"
+          description: "{{ $value | printf \"%.0f\" }}% of the host's 1.7 GB is in use. There is no swap on this droplet."
+
+      - alert: HostLowDiskSpace
+        expr: 100 * node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} < 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host is running low on disk"
+          description: "Only {{ $value | printf \"%.0f\" }}% of / is free. Try `docker system prune` before it fills."
+
+      - alert: HostDiskFull
+        expr: 100 * node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} < 5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Host disk is nearly full"
+          description: "Less than 5% of / is free. MariaDB and the Prometheus TSDB both stop writing when the disk fills."
+
+  - name: monitoring
+    rules:
+
+      # If this fires, the other alerts may never reach Discord — Prometheus
+      # and Alertmanager's own UIs are the fallback.
+      - alert: AlertmanagerNotificationsFailing
+        expr: rate(alertmanager_notifications_failed_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alertmanager cannot deliver notifications"
+          description: "Delivery to the {{ $labels.integration }} receiver has been failing for 5 minutes. Check the Discord webhook URL in ~/prometheus/alertmanager/discord_webhook_url."

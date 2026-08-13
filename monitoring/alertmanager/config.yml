@@ -1,0 +1,83 @@
+# Alertmanager routing for the portfolio site.
+#
+# Every notification goes to a Discord channel through an incoming webhook.
+# The webhook URL itself is a secret and is NOT in git: it lives on the VPS in
+# ~/prometheus/alertmanager/discord_webhook_url, which is mounted into the
+# container at /etc/alertmanager/discord_webhook_url. Rotating the webhook in
+# Discord means editing that one file and reloading Alertmanager.
+
+global:
+  # How long after the last "firing" evaluation an alert counts as resolved.
+  resolve_timeout: 5m
+
+route:
+  receiver: 'discord-warning'
+  # Alerts of the same name and severity arrive as one Discord message rather
+  # than one per instance.
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  routes:
+    # Critical alerts jump the queue and nag more often than warnings.
+    - matchers:
+        - severity = "critical"
+      receiver: 'discord-critical'
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 1h
+
+receivers:
+  - name: 'discord-critical'
+    discord_configs:
+      - webhook_url_file: /etc/alertmanager/discord_webhook_url
+        send_resolved: true
+        title: >-
+          {{ if eq .Status "firing" }}🔥 CRITICAL · {{ .Alerts.Firing | len }} firing{{ else }}✅ RESOLVED{{ end }} · {{ .CommonLabels.alertname }}
+        message: >-
+          {{ range .Alerts }}**{{ .Annotations.summary }}**
+
+          {{ .Annotations.description }}
+
+          {{ if .Labels.instance }}`instance: {{ .Labels.instance }}` {{ end }}{{ if .Labels.name }}`container: {{ .Labels.name }}` {{ end }}{{ if .Labels.dependency }}`dependency: {{ .Labels.dependency }}` {{ end }}
+
+          {{ end }}[Silence or inspect in Alertmanager](http://167.172.138.95:9093) · [Grafana](http://167.172.138.95:3000)
+
+  - name: 'discord-warning'
+    discord_configs:
+      - webhook_url_file: /etc/alertmanager/discord_webhook_url
+        send_resolved: true
+        title: >-
+          {{ if eq .Status "firing" }}⚠️ WARNING · {{ .Alerts.Firing | len }} firing{{ else }}✅ RESOLVED{{ end }} · {{ .CommonLabels.alertname }}
+        message: >-
+          {{ range .Alerts }}**{{ .Annotations.summary }}**
+
+          {{ .Annotations.description }}
+
+          {{ if .Labels.instance }}`instance: {{ .Labels.instance }}` {{ end }}{{ if .Labels.name }}`container: {{ .Labels.name }}` {{ end }}{{ if .Labels.dependency }}`dependency: {{ .Labels.dependency }}` {{ end }}
+
+          {{ end }}[Grafana dashboard](http://167.172.138.95:3000)
+
+inhibit_rules:
+  # While something is critically broken on a host, don't also send warnings
+  # about the symptoms on that same host.
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ['alertname', 'instance']
+
+  # If the whole site is down, the dependency and latency alerts that follow
+  # from it are noise.
+  - source_matchers:
+      - alertname = "PortfolioSiteDown"
+    target_matchers:
+      - alertname =~ "PortfolioDependencyDown|PortfolioDependencySlow|PortfolioHighErrorRate|PortfolioHighLatency"
+
+  # PortfolioSiteDown is the same event as TargetDown for that job, said better.
+  - source_matchers:
+      - alertname = "PortfolioSiteDown"
+    target_matchers:
+      - alertname = "TargetDown"
+    equal: ['job']

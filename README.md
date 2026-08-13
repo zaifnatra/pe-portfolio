@@ -38,6 +38,7 @@ _Note: Make sure to include a link to the Issue you're progressing on inside of 
 | --- | --- |
 | `app/` | Flask application (routes, templates, static assets). |
 | `tests/` | Unit tests for the app and the database model. |
+| `monitoring/` | Prometheus, Alertmanager and Grafana config for the VPS monitoring stack, plus the load-test script. |
 | `user_conf.d/` | Nginx site config mounted into the `nginx` container. |
 | `Dockerfile` | Image definition for the Flask app. |
 | `docker-compose.yml` | Local development stack (Flask + MariaDB, port 5000 published). |
@@ -55,7 +56,10 @@ The following files are additions beyond the standard fellowship template.
   Without it, Git on Windows checks them out with CRLF and the containers fail with `bad interpreter: /bin/bash^M`.
 - `curl-test.sh` - end-to-end API check (POST, GET, DELETE against `/api/timeline_post`) written for the Week 5 exercise.
 - `.github/` - issue templates, a pull request template, and a contributing guide used for the Week 1 GitHub workflow tasks.
+- `monitoring/` - alert rules, Alertmanager's Discord routing, a provisioned Grafana dashboard, and `load-test.sh`.
+  The stack itself is an upstream clone on the VPS; keeping our config here means it gets reviewed like the rest of the site.
 - `docs/deployment-notes.md` - VPS runbook: SSH details, redeploy steps, firewall and certbot gotchas.
+- `docs/monitoring-notes.md` - monitoring runbook: what `/health` and `/metrics` do, how alerts reach Discord, how to load test.
 
 ## Getting Started
 

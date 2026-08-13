@@ -1,0 +1,19 @@
+# The Prometheus datasource, with a fixed uid so the provisioned dashboard can
+# reference it by name instead of whatever uid Grafana would have generated.
+apiVersion: 1
+
+deleteDatasources:
+  - name: Prometheus
+    orgId: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    orgId: 1
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: 15s

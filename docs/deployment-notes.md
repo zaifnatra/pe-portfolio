@@ -98,4 +98,19 @@ Port 5000 is no longer published to the host, so hit it through nginx instead:
 ```
 curl -k https://localhost/api/timeline_post          # on the VPS
 curl https://huzaifa-pe-portfolio.duckdns.org/api/timeline_post
+curl https://huzaifa-pe-portfolio.duckdns.org/health   # 200 = nginx, Flask and MariaDB all answered
+```
+`/health` reports each dependency separately and returns 503 if any of them is down.
+See [monitoring-notes.md](monitoring-notes.md).
+
+## Monitoring
+The Prometheus/Grafana/Alertmanager stack lives in `~/prometheus` and is documented in
+[monitoring-notes.md](monitoring-notes.md).
+
+One ordering dependency to know about: `docker-compose.prod.yml` attaches `myportfolio` to the
+`prometheus_back-tier` network (declared `external`) so Prometheus can scrape it. **Bring the
+monitoring stack up first**, or the site stack fails with `network prometheus_back-tier not found`:
+```
+cd ~/prometheus && docker compose up -d
+cd ~/pe-portfolio && docker compose -f docker-compose.prod.yml up -d --build
 ```

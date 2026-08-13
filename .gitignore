@@ -6,3 +6,6 @@ __pycache__
 python3-virtualenv
 flask.sqlite
 .DS_Store
+
+# The Alertmanager Discord webhook is a secret and lives only on the VPS.
+discord_webhook_url
