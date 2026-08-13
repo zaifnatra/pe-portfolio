@@ -81,9 +81,13 @@ To rotate it (Discord → Channel Settings → Integrations → Webhooks):
 
 ```bash
 printf '%s' 'https://discord.com/api/webhooks/...' > ~/prometheus/alertmanager/discord_webhook_url
-chmod 600 ~/prometheus/alertmanager/discord_webhook_url
+chown 65534:65534 ~/prometheus/alertmanager/discord_webhook_url   # see below
+chmod 400 ~/prometheus/alertmanager/discord_webhook_url
 docker kill -s HUP prometheus-alertmanager-1
 ```
+
+The ownership matters: `prom/alertmanager` runs as `nobody` (uid 65534), so a root-owned `600` file is unreadable inside the container and every notification dies with `read webhook_url_file: permission denied` — which Alertmanager only reports in its own log, since it cannot notify you that it cannot notify you.
+`deploy-monitoring.sh` sets the ownership on every run so this cannot drift.
 
 If notifications stop arriving, `AlertmanagerNotificationsFailing` fires on the stack's own metrics — but that alert has to reach Discord too, so check http://167.172.138.95:9093 and `docker logs prometheus-alertmanager-1` when things go quiet.
 

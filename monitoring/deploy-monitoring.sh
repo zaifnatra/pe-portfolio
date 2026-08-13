@@ -58,11 +58,17 @@ The Discord webhook URL is missing. Alertmanager will start but every
 notification will fail. Create it with:
 
   printf '%s' 'https://discord.com/api/webhooks/...' > $WEBHOOK_FILE
-  chmod 600 $WEBHOOK_FILE
 
 EOF
   exit 1
 fi
+
+# prom/alertmanager runs as nobody (65534), so a root-owned 600 file is
+# unreadable inside the container and every notification fails with
+# "read webhook_url_file: permission denied". Owned by that uid instead, the
+# secret stays unreadable to everyone else.
+chown 65534:65534 "$WEBHOOK_FILE"
+chmod 400 "$WEBHOOK_FILE"
 
 echo "==> Validating"
 if ! docker exec prometheus-prometheus-1 promtool check config /etc/prometheus/prometheus.yml; then
