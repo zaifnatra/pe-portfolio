@@ -2,7 +2,7 @@
 
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 os.environ["TESTING"] = "true"
 
@@ -62,17 +62,42 @@ class AppTestCase(unittest.TestCase):
         assert 'id="timeline-form"' in page_html
 
     def test_health(self):
-        response = self.client.get("/health")
+        # NGINX_STATUS_URL is patched rather than read from the environment so
+        # this passes both locally and inside the production container.
+        with patch("app.NGINX_STATUS_URL", None):
+            response = self.client.get("/health")
+
         assert response.status_code == 200
         assert response.is_json
         payload = response.get_json()
         assert payload["status"] == "ok"
         assert payload["checks"]["database"]["status"] == "ok"
         assert payload["checks"]["database"]["timeline_posts"] == 0
-        # There is no nginx container in the test environment, so that check
-        # reports itself as skipped rather than failing the endpoint.
+        # Unset outside production, where there is no nginx container: the
+        # check reports itself as skipped instead of failing the endpoint.
         assert payload["checks"]["nginx"]["status"] == "skipped"
         assert "duration_ms" in payload
+
+    def test_health_reads_nginx_status(self):
+        stub_status = (
+            "Active connections: 7 \n"
+            "server accepts handled requests\n"
+            " 12 12 30 \n"
+            "Reading: 0 Writing: 1 Waiting: 6 \n"
+        )
+        nginx_response = MagicMock()
+        nginx_response.read.return_value = stub_status.encode()
+        nginx_response.__enter__.return_value = nginx_response
+
+        with patch("app.NGINX_STATUS_URL", "http://nginx:8080/nginx_status"), patch(
+            "urllib.request.urlopen", return_value=nginx_response
+        ):
+            response = self.client.get("/health")
+
+        assert response.status_code == 200
+        nginx = response.get_json()["checks"]["nginx"]
+        assert nginx["status"] == "ok"
+        assert nginx["active_connections"] == 7
 
     def test_health_reports_a_failing_dependency(self):
         def unreachable():
