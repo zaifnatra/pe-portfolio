@@ -6,6 +6,15 @@ services:
     restart: always
     env_file:
       - .env
+    environment:
+      # Where /health reads nginx's stub_status. Only set in production, since
+      # local development runs without an nginx container.
+      - NGINX_STATUS_URL=http://nginx:8080/nginx_status
+    networks:
+      # "monitoring" is only here so Prometheus can scrape /metrics; the app
+      # still talks to mysql and nginx over the default network.
+      - default
+      - monitoring
     depends_on:
       - mysql
 
@@ -36,3 +45,11 @@ services:
 volumes:
   mydatabase:
   nginx_secrets:
+
+networks:
+  default:
+  # Created by the monitoring stack (~/prometheus). Bring that stack up first,
+  # or this compose file has no network to attach to.
+  monitoring:
+    external: true
+    name: prometheus_back-tier

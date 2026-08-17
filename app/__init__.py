@@ -1,12 +1,22 @@
 import os
 import datetime
+import socket
+import time
+import urllib.request
 from flask import Flask, render_template, request
 from dotenv import load_dotenv
 from peewee import *
 from playhouse.shortcuts import model_to_dict
+from prometheus_client import REGISTRY
+from prometheus_client.core import GaugeMetricFamily
+from prometheus_flask_exporter import PrometheusMetrics
 
 load_dotenv()
 app = Flask(__name__)
+
+# Serves /metrics for Prometheus: request counts, latency histograms and
+# response codes, labelled by path.
+metrics = PrometheusMetrics(app)
 
 if os.getenv("TESTING") == "true":
     print("Running in test mode")
@@ -34,6 +44,94 @@ class TimelinePost(Model):
 
 mydb.connect()
 mydb.create_tables([TimelinePost])
+
+# --- Health checks ---------------------------------------------------------
+#
+# /health talks to every other container the site depends on, so a load test
+# against this one endpoint puts work through nginx, this app and MariaDB
+# rather than leaving a container idle. Prometheus scrapes the same checks via
+# /metrics, which keeps the dependency gauges fresh without anyone calling
+# /health by hand.
+
+# nginx serves stub_status on an internal-only port (see user_conf.d). Unset in
+# local development, where there is no nginx container — the check is then
+# reported as skipped instead of failing.
+NGINX_STATUS_URL = os.getenv("NGINX_STATUS_URL")
+
+# Kept short so a hung dependency fails the check instead of hanging /health.
+HEALTH_CHECK_TIMEOUT_SECONDS = 2.0
+
+
+class CheckSkipped(Exception):
+    """Raised by a health check that is not configured in this environment."""
+
+
+def _check_database():
+    """Round trip a real query so MariaDB does actual work, not just a ping."""
+    mydb.connect(reuse_if_open=True)
+    cursor = mydb.execute_sql("SELECT 1")
+    cursor.fetchone()
+    return {"timeline_posts": TimelinePost.select().count()}
+
+
+def _check_nginx():
+    """Read nginx's stub_status page over the internal docker network."""
+    if not NGINX_STATUS_URL:
+        raise CheckSkipped("NGINX_STATUS_URL is not set")
+    with urllib.request.urlopen(
+        NGINX_STATUS_URL, timeout=HEALTH_CHECK_TIMEOUT_SECONDS
+    ) as response:
+        body = response.read().decode()
+    # "Active connections: 3 \nserver accepts handled requests\n ..."
+    return {"active_connections": int(body.split()[2])}
+
+
+HEALTH_CHECKS = {
+    "database": _check_database,
+    "nginx": _check_nginx,
+}
+
+
+def run_health_checks():
+    """Run every dependency check, timing each one and swallowing failures."""
+    results = {}
+    for name, check in HEALTH_CHECKS.items():
+        started = time.perf_counter()
+        try:
+            result = {"status": "ok", **check()}
+        except CheckSkipped as exc:
+            result = {"status": "skipped", "reason": str(exc)}
+        except Exception as exc:
+            result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
+        result["latency_ms"] = round((time.perf_counter() - started) * 1000, 2)
+        results[name] = result
+    return results
+
+
+class DependencyCollector:
+    """Runs the health checks whenever Prometheus scrapes /metrics."""
+
+    def collect(self):
+        up = GaugeMetricFamily(
+            "portfolio_dependency_up",
+            "1 if the dependency answered its health check, 0 if it failed",
+            labels=["dependency"],
+        )
+        duration = GaugeMetricFamily(
+            "portfolio_dependency_check_duration_seconds",
+            "How long the dependency's health check took",
+            labels=["dependency"],
+        )
+        for name, result in run_health_checks().items():
+            if result["status"] == "skipped":
+                continue
+            up.add_metric([name], 1.0 if result["status"] == "ok" else 0.0)
+            duration.add_metric([name], result["latency_ms"] / 1000.0)
+        yield up
+        yield duration
+
+
+REGISTRY.register(DependencyCollector())
 
 education = [
     {
@@ -226,6 +324,10 @@ hobbies = [
 ]
 
 
+# Routes that answer machines rather than people, so they stay out of the nav.
+OPERATIONAL_ROUTES = {"/health", "/metrics"}
+
+
 @app.context_processor
 def inject_nav():
     links = []
@@ -233,7 +335,7 @@ def inject_nav():
         if rule.endpoint == "static" or "GET" not in rule.methods:
             continue
         # API routes return JSON, not pages — keep them out of the nav.
-        if rule.rule.startswith("/api"):
+        if rule.rule.startswith("/api") or rule.rule in OPERATIONAL_ROUTES:
             continue
         label = (
             "Home"
@@ -280,6 +382,20 @@ def timeline():
         url=os.getenv("URL"),
         max_content_length=MAX_CONTENT_LENGTH,
     )
+
+
+@app.route("/health")
+def health():
+    started = time.perf_counter()
+    checks = run_health_checks()
+    healthy = all(check["status"] != "error" for check in checks.values())
+    payload = {
+        "status": "ok" if healthy else "unhealthy",
+        "served_by": socket.gethostname(),
+        "checks": checks,
+        "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+    }
+    return payload, 200 if healthy else 503
 
 
 @app.route("/api/timeline_post", methods=["POST"])
